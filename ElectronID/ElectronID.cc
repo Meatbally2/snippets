@@ -6,6 +6,9 @@
 
 #include <iostream>
 
+#include <Math/LorentzVector.h>
+using ROOT::Math::PxPyPzEVector;
+
 ElectronID::ElectronID() {
 
 	mEe = 10.;
@@ -47,9 +50,77 @@ ElectronID::~ElectronID() {
 void ElectronID::SetEvent(const podio::Frame* event) {
 
 	mEvent = event;
-
+	hfs_dpt.clear();
+	hfs_dpz.clear();
+	hfs_de.clear();
+	hfs_theta.clear();
 }
 
+edm4eic::ReconstructedParticleCollection ElectronID::FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost) {
+
+	edm4eic::ReconstructedParticleCollection meRecon;
+	meRecon->setSubsetCollection();
+
+	edm4hep::MCParticleCollection meMiss;
+	meMiss->setSubsetCollection();
+
+	auto& rcparts = mEvent->get<edm4eic::ReconstructedParticleCollection>("ReconstructedParticles");
+
+	if ( use_mc )
+	{
+		edm4hep::MCParticleCollection meMC = GetMCElectron();
+		auto& RecoMC = mEvent->get<edm4eic::MCRecoParticleAssociationCollection>("ReconstructedParticleAssociations");
+	
+		for(const auto& assoc : RecoMC) 
+		{
+			if(assoc.getSim() != meMC[0] && assoc.getSim().getGeneratorStatus() == 1) 
+			{
+				PxPyPzEVector v(assoc.getSim().getMomentum().x, assoc.getSim().getMomentum().y, assoc.getSim().getMomentum().z, assoc.getSim().getEnergy());
+				PxPyPzEVector u(assoc.getRec().getMomentum().x, assoc.getRec().getMomentum().y, assoc.getRec().getMomentum().z, assoc.getRec().getEnergy());
+				PxPyPzEVector c(assoc.getRec().getMomentum().x, assoc.getRec().getMomentum().y, assoc.getRec().getMomentum().z, GetCalorimeterEnergy(assoc.getRec()));
+				
+				hfs_dpt.push_back((u.Pt()-v.Pt())/v.Pt());
+				hfs_dpz.push_back((u.Z()-v.Z())/v.Z());
+				hfs_de.push_back((u.E()-v.E())/v.E());
+				hfs_theta.push_back(v.Theta()*(180./M_PI));				
+
+				v = boost(v);
+				u = boost(u);
+				c = boost(c);
+
+				meRecon.push_back(assoc.getRec());
+			}
+		}
+	}
+	else
+	{ 
+		for(const auto& mcp : rcparts) {
+			if ( mcp.getObjectID().index != object_id )
+				meRecon.push_back(mcp);
+		}
+	}
+
+	return meRecon;
+}
+
+edm4hep::MCParticleCollection ElectronID::GetMCHadronicFinalState() {
+
+	edm4hep::MCParticleCollection mhMC;
+	mhMC->setSubsetCollection();
+
+	auto& mcparts = mEvent->get<edm4hep::MCParticleCollection>("MCParticles");
+
+	std::vector<edm4hep::MCParticle> mc_hadronic;
+	edm4hep::MCParticleCollection meMC = GetMCElectron();
+	
+	bool found_scattered_e = false; 
+	for(const auto& mcp : mcparts) {
+		if (mcp.getGeneratorStatus() == 1 && mcp.getObjectID().index != meMC[0].getObjectID().index ) 
+			mhMC.push_back(mcp);	
+	}
+
+	return mhMC;
+}
 
 edm4eic::ReconstructedParticleCollection ElectronID::FindScatteredElectron() {
 
@@ -215,4 +286,49 @@ double ElectronID::GetCalorimeterEnergy(const edm4eic::ReconstructedParticle& rc
 
 }
 
+void ElectronID::GetBeam(LorentzRotation &boost, TLorentzVector &in_e, TLorentzVector &in_n) 
+{ 
+    edm4hep::MCParticle mc_electron;
+    edm4hep::MCParticle mc_nucleon;
 
+    auto& mcparts = mEvent->get<edm4hep::MCParticleCollection>("MCParticles");
+    vector<edm4hep::MCParticle> spec_protons;
+
+	for(const auto& mcp : mcparts)
+    {
+        if ( mcp.getGeneratorStatus() == 4 )
+        {
+            if ( mcp.getPDG() == ID_ELECTRON )
+                mc_electron = mcp;
+            else 
+                mc_nucleon = mcp;
+        }
+    }
+
+    if ( !mc_electron.isAvailable() || !mc_nucleon.isAvailable() )
+        return;
+
+	in_e.SetPxPyPzE(mc_electron.getMomentum().x, mc_electron.getMomentum().y, mc_electron.getMomentum().z, mc_electron.getEnergy());
+    in_n.SetPxPyPzE(mc_nucleon.getMomentum().x, mc_nucleon.getMomentum().y, mc_nucleon.getMomentum().z, mc_nucleon.getEnergy());
+
+    // get boost matrix -- redo every run because the proton / neutron has different mass .. but really this should not change per event .. to be changed
+    const PxPyPzEVector ei(
+        eicrecon::round_beam_four_momentum(
+            mc_electron.getMomentum(),
+            mc_electron.getMass(),
+            {-1*mEe},
+            0.0)
+        );
+
+    const PxPyPzEVector pi(
+        eicrecon::round_beam_four_momentum(
+            mc_nucleon.getMomentum(),
+            mc_nucleon.getMass(),
+            {mEh},
+            -0.025)
+        );
+    
+    boost = eicrecon::determine_boost(ei, pi); // Get boost to colinear frame
+
+	return;
+}

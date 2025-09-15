@@ -6,6 +6,12 @@
 #include "edm4eic/ReconstructedParticleCollection.h"
 #include "edm4hep/MCParticleCollection.h"
 
+#include "constants.h"
+#include "Beam.h"
+#include "Boost.h"
+
+using ROOT::Math::LorentzRotation;
+
 class ElectronID{
 
 public:
@@ -21,11 +27,20 @@ public:
 
 	void SetEvent(const podio::Frame* event); 
 
+	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost);
+	edm4hep::MCParticleCollection GetMCHadronicFinalState();
 	edm4eic::ReconstructedParticleCollection FindScatteredElectron();	
 	edm4eic::ReconstructedParticleCollection GetTruthReconElectron();	
 	edm4hep::MCParticleCollection GetMCElectron();	
 	edm4eic::ReconstructedParticle SelectHighestPT(const edm4eic::ReconstructedParticleCollection& rcparts);
 	double GetCalorimeterEnergy(const edm4eic::ReconstructedParticle& rcp);
+	void GetBeam(LorentzRotation &boost, TLorentzVector &in_e, TLorentzVector &in_n);
+
+	// for HFS QA
+	vector<double> hfs_dpt;
+	vector<double> hfs_dpz;
+	vector<double> hfs_de;
+	vector<double> hfs_theta;
 
 private:
 
