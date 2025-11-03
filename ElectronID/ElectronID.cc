@@ -76,39 +76,21 @@ int ElectronID::Check_eID(edm4eic::ReconstructedParticle e_rec) {
 	return 86;
 }
 
-edm4eic::ReconstructedParticleCollection ElectronID::FindHadronicFinalState(bool use_mc, int object_id, bool is_print, LorentzRotation boost) {
+edm4eic::ReconstructedParticleCollection ElectronID::FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost) {
 
-	// edm4eic::HadronicFinalStateCollection meRecon;
 	edm4eic::ReconstructedParticleCollection meRecon;
 	meRecon->setSubsetCollection();
 
 	edm4hep::MCParticleCollection meMiss;
 	meMiss->setSubsetCollection();
 
-	// auto& rcparts = mEvent->get<edm4eic::HadronicFinalStateCollection>("HadronicFinalState");
 	auto& rcparts = mEvent->get<edm4eic::ReconstructedParticleCollection>("ReconstructedParticles");
-
-	// cout << "ef_rc_id after " << object_id << endl;
-
-	if ( is_print )
-		cout << " new HFS loop " << endl;
 
 	if ( use_mc )
 	{
 		edm4hep::MCParticleCollection meMC = GetMCElectron();
 		auto& RecoMC = mEvent->get<edm4eic::MCRecoParticleAssociationCollection>("ReconstructedParticleAssociations");
-
-		if ( is_print )
-		{
-			// cout << "scat e\n" << meMC[0] << endl;
-			PxPyPzEVector v(meMC[0].getMomentum().x, meMC[0].getMomentum().y, meMC[0].getMomentum().z, meMC[0].getEnergy());
-			v = boost(v);
-			cout << "scat e .. " << Form("PDG %d, ", meMC[0].getPDG()) <<  Form("pt %f, ", v.Pt()) << Form("pz %f, ", v.Z()) << Form("E %f, ", v.E()) << Form("theta %f", v.Theta()) << endl;
-		}
-
-		// if ( is_print )
-		// 	cout << "hfs selected .. \n" << endl;
-			
+	
 		for(const auto& assoc : RecoMC) 
 		{
 			if(assoc.getSim() != meMC[0] && assoc.getSim().getGeneratorStatus() == 1) 
@@ -122,67 +104,11 @@ edm4eic::ReconstructedParticleCollection ElectronID::FindHadronicFinalState(bool
 				hfs_de.push_back((u.E()-v.E())/v.E());
 				hfs_theta.push_back(v.Theta()*(180./M_PI));				
 
-				// if ( (u.Pt()-v.Pt())/v.Pt() > 0.3 || (u.Pt()-v.Pt())/v.Pt() < -0.3 )
-				// 	continue; 
-				
-				// if ( (u.Z()-v.Z())/v.Z() > 0.3 || (u.Z()-v.Z())/v.Z() < -0.3 )
-				// 	continue;
-
-				// if ( (u.E()-v.E())/v.E() > 0.3 || (u.E()-v.E())/v.E() < -0.3 )
-				// 	continue;
-
-				
 				v = boost(v);
 				u = boost(u);
 				c = boost(c);
 
-				// if ( assoc.getSim().getMomentum().z > 0 && assoc.getRec().getMomentum().z < 0 )
-				// 	continue;
-
-				// if ( assoc.getSim().getMomentum().z < 0 && assoc.getRec().getMomentum().z > 0 )
-				// 	continue;
-
 				meRecon.push_back(assoc.getRec());
-
-				if ( is_print )
-				{
-					// cout << "selected ..\n" << assoc.getSim() << endl;
-					cout << "selected .." << endl;
-					cout << " MC info .. " << Form("PDG %d, ", assoc.getSim().getPDG()) <<  Form("pt %f, ", v.Pt()) << Form("pz %f, ", v.Z()) << Form("E %f, ", v.E()) << Form("theta %f", v.Theta()) << endl;
-					cout << " REC info .. " << Form("PDG %d, ", assoc.getRec().getPDG()) <<  Form("pt %f, ", u.Pt()) << Form("pz %f, ", u.Z()) << Form("E %f, ", u.E()) << Form("CAL E %f, ", c.E()) << Form("theta %f", u.Theta()) << endl;
-				}
-					
-			}
-
-			// cout << "recon asso " << assoc.getSim().getPDG() << endl;
-		}
-
-		if ( is_print )
-		{
-			// cout << "hfs missed .. \n" << endl;
-
-			auto& mcparts = mEvent->get<edm4hep::MCParticleCollection>("MCParticles");
-			for(const auto& mcp : mcparts) 
-			{
-				if (mcp.getGeneratorStatus() == 1)
-				{
-					bool selected = (mcp == meMC[0]);
-					if ( !selected )
-					{
-						for(const auto& assoc : RecoMC)
-							if ( mcp == assoc.getSim() )
-								selected = true;
-					}
-
-					if ( !selected )
-					{
-						// cout << "missed ..\n" << mcp << endl;
-						PxPyPzEVector v(mcp.getMomentum().x, mcp.getMomentum().y, mcp.getMomentum().z, mcp.getEnergy());
-						v = boost(v);
-						cout << "missed .. " << Form("PDG %d, ", mcp.getPDG()) <<  Form("pt %f, ", v.Pt()) << Form("pz %f, ", v.Z()) << Form("E %f, ", v.E()) << Form("theta %f", v.Theta()) << endl;
-					}
-						
-				}
 			}
 		}
 	}
@@ -268,72 +194,24 @@ edm4hep::MCParticleCollection ElectronID::GetMCElectron() {
 
 	edm4hep::MCParticleCollection meMC;
 	meMC->setSubsetCollection();
-	
-	auto& mcparts = mEvent->get<edm4hep::MCParticleCollection>("MCParticles");
-	if ( eScatIndex != -1 )
-		meMC.push_back(mcparts[eScatIndex]);
 
-	////
+	auto& mcparts = mEvent->get<edm4hep::MCParticleCollection>("MCParticles");
+
+	std::vector<edm4hep::MCParticle> mc_electrons;
+	
 	for(const auto& mcp : mcparts) {
 		if(mcp.getPDG() == 11 && mcp.getGeneratorStatus() == 1) {
-			meMC.push_back(mcp); // For now, just take first electron
-			break;
+			mc_electrons.push_back(mcp);
 		}
 	}
-	////
 
-	// std::vector<edm4hep::MCParticle> mc_electrons;
-/*	
-	// cout << "new" << endl;
-	for(const auto& mcp : mcparts) 
-	{
-		if ( mcp.getGeneratorStatus() == 4 && mcp.getPDG() == 11 )
-        {
-			for (auto md = mcp.daughters_begin(), mend = mcp.daughters_end(); md != mend; ++md) 
-			{
-				cout << "new daugter " << endl;
-				int mdIndex = md->getObjectID().index;
-				auto daughter = mcparts[mdIndex];
-				cout << daughter << endl;
-
-				// edm4hep::MCParticle daughter = mcp.getDaughters(0); // copy of mcp
-				for (auto it = daughter.daughters_begin(), end = daughter.daughters_end(); it != end; ++it) 
-				{
-					int Index = it->getObjectID().index;
-					auto dau = mcparts[Index];
-					cout << "dau " << endl;
-					cout << dau << endl;
-					if ( dau.getGeneratorStatus() == 1 && dau.getPDG() == 11)
-					{
-						meMC.push_back(dau);
-						eScatIndex = Index;
-						
-						// cout << dau << endl;
-						// for (auto dit = dau.parents_begin(), dend = dau.parents_end(); dit != dend; ++dit) 
-						// {
-						// 	int dauIndex = dit->getObjectID().index;
-						// 	auto dpar = mcparts[dauIndex];
-						// 	cout << dpar << "dau parent" << endl << dpar.getParents(0) << endl;
-						// }
-						break;
-					}
-				}
-			}
-			break;
-		}
+	// For now, just take first electron
+	if(mc_electrons.size() > 0) {
+		meMC.push_back(mc_electrons[0]);
 	}
-*/
-	// cout << "full e list" << endl;
-	// for(const auto& mcp : mcparts) 
-	// {
-	// 	if ( mcp.getGeneratorStatus() == 1 && mcp.getPDG() == 11)
-	// 	{
-	// 		cout << mcp << endl;
-	// 	}
-	// }
-	
 
 	return meMC;
+
 }
 
 edm4eic::ReconstructedParticleCollection ElectronID::GetTruthReconElectron() {

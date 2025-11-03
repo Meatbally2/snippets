@@ -7,6 +7,10 @@
 #include "edm4eic/ReconstructedParticleCollection.h"
 #include "edm4hep/MCParticleCollection.h"
 
+#include "constants.h"
+#include "Beam.h"
+#include "Boost.h"
+
 #include <Math/LorentzRotation.h>
 using ROOT::Math::LorentzRotation;
 
@@ -27,7 +31,7 @@ public:
 	void SetEvent(const podio::Frame* event); 
 
 	int Check_eID(edm4eic::ReconstructedParticle e_rec);
-	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, bool is_print, LorentzRotation boost);
+	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost);
 	edm4eic::ReconstructedParticleCollection FindScatteredElectron();	
 	edm4eic::ReconstructedParticleCollection GetTruthReconElectron();	
 	edm4hep::MCParticleCollection GetMCElectron();	
