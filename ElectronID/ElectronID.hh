@@ -3,14 +3,13 @@
 
 #include "podio/Frame.h"
 
+#include "edm4eic/HadronicFinalStateCollection.h"
 #include "edm4eic/ReconstructedParticleCollection.h"
 #include "edm4hep/MCParticleCollection.h"
 
-#include "constants.h"
-#include "Beam.h"
-#include "Boost.h"
-
+#include <Math/LorentzRotation.h>
 using ROOT::Math::LorentzRotation;
+
 
 class ElectronID{
 
@@ -27,20 +26,36 @@ public:
 
 	void SetEvent(const podio::Frame* event); 
 
-	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost);
-	edm4hep::MCParticleCollection GetMCHadronicFinalState();
+	int Check_eID(edm4eic::ReconstructedParticle e_rec);
+	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, bool is_print, LorentzRotation boost);
 	edm4eic::ReconstructedParticleCollection FindScatteredElectron();	
 	edm4eic::ReconstructedParticleCollection GetTruthReconElectron();	
 	edm4hep::MCParticleCollection GetMCElectron();	
+	edm4hep::MCParticleCollection GetMCHadronicFinalState();
 	edm4eic::ReconstructedParticle SelectHighestPT(const edm4eic::ReconstructedParticleCollection& rcparts);
 	double GetCalorimeterEnergy(const edm4eic::ReconstructedParticle& rcp);
 	void GetBeam(LorentzRotation &boost, TLorentzVector &in_e, TLorentzVector &in_n);
+
+	double get_mEoP_min() const { return mEoP_min; }
+	double get_mEoP_max() const { return mEoP_max; }
+	double get_mDeltaH_min() const { return mDeltaH_min; }
+	double get_mDeltaH_max() const { return mDeltaH_max; }
+	double get_mIsoR() const { return mIsoR; }
+	double get_mIsoE() const { return mIsoE; }
 
 	// for HFS QA
 	vector<double> hfs_dpt;
 	vector<double> hfs_dpz;
 	vector<double> hfs_de;
 	vector<double> hfs_theta;
+
+	struct DetValues {
+		double recon_EoP;
+		double recon_isoE;
+	};
+	vector<DetValues> e_det;
+	vector<DetValues> pi_det;
+	vector<DetValues> else_det;
 
 private:
 
@@ -64,7 +79,7 @@ private:
 	double rcpart_isolation_E;
 	double rcpart_deltaH;
 
-
+	int eScatIndex;
 };
 
 #endif

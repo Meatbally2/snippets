@@ -8,3 +8,5 @@
 #define ID_ELECTRON 11
 #define ID_PROTON   2212
 #define ID_NEUTRON  2112
+
+#define CROSSING_ANGLE -0.025 // rad
