@@ -1,3 +1,5 @@
+#include "preLoadLib.hh"
+
 // Data model headers
 #include "edm4eic/ReconstructedParticleCollection.h"
 #include "edm4hep/MCParticleCollection.h"

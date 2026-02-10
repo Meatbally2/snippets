@@ -3,13 +3,9 @@
 
 #include "podio/Frame.h"
 
-#include "edm4eic/HadronicFinalStateCollection.h"
 #include "edm4eic/ReconstructedParticleCollection.h"
+#include "edm4eic/MCRecoParticleAssociationCollection.h"
 #include "edm4hep/MCParticleCollection.h"
-
-#include "constants.h"
-#include "Beam.h"
-#include "Boost.h"
 
 #include <Math/LorentzRotation.h>
 using ROOT::Math::LorentzRotation;
@@ -27,17 +23,22 @@ public:
 	inline void SetEoPMin(double eopmin) {mEoP_min = eopmin;}	
 	inline void SetDeltaHMin(double deltahmin) {mDeltaH_min = deltahmin;}	
 	inline void SetIsolation(double isor, double isoe) {mIsoR = isor; mIsoE = isoe;}	
+	inline void SetMinTrackPoints(int minPoints) { minTrackPoints = minPoints; }
 
 	void SetEvent(const podio::Frame* event); 
+	void SetBoost(LorentzRotation fboost) { boost = fboost; }
 
 	int Check_eID(edm4eic::ReconstructedParticle e_rec);
-	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(bool use_mc, int object_id, LorentzRotation boost);
+	edm4hep::MCParticle GetMC(edm4eic::ReconstructedParticle e_rec);
+	edm4eic::ReconstructedParticleCollection FindHadronicFinalState(int object_id);
 	edm4eic::ReconstructedParticleCollection FindScatteredElectron();	
 	edm4eic::ReconstructedParticleCollection GetTruthReconElectron();	
 	edm4hep::MCParticleCollection GetMCElectron();	
 	edm4hep::MCParticleCollection GetMCHadronicFinalState();
 	edm4eic::ReconstructedParticle SelectHighestPT(const edm4eic::ReconstructedParticleCollection& rcparts);
 	double GetCalorimeterEnergy(const edm4eic::ReconstructedParticle& rcp);
+	void GetEminusPzSum(double &TrackEminusPzSum, double &CalEminusPzSum);
+	void CheckClusters();
 	void GetBeam(LorentzRotation &boost, TLorentzVector &in_e, TLorentzVector &in_n);
 
 	double get_mEoP_min() const { return mEoP_min; }
@@ -54,10 +55,12 @@ public:
 	vector<double> hfs_theta;
 
 	struct DetValues {
+		int nTrackPoints;
 		double recon_EoP;
 		double recon_isoE;
 	};
 	vector<DetValues> e_det;
+	vector<DetValues> jet_e_det;
 	vector<DetValues> pi_det;
 	vector<DetValues> else_det;
 
@@ -67,6 +70,7 @@ private:
 
 	double mEe;
 	double mEh;
+	LorentzRotation boost;
 
 	double mEoP_min;
 	double mEoP_max;
@@ -74,6 +78,7 @@ private:
 	double mDeltaH_max;
 	double mIsoR;
 	double mIsoE;
+	int minTrackPoints = 3;
 	
 	void CalculateParticleValues(const edm4eic::ReconstructedParticle& rcp,
 		const edm4eic::ReconstructedParticleCollection& rcparts);
